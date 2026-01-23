@@ -1,0 +1,42 @@
+#!/bin/bash
+set -e
+
+ROOT_PASS="${MYSQL_ROOT_PASSWORD}"
+APP_PASS="${MYSQL_PASSWORD}"
+APP_USER="${MYSQL_USER}"
+DATABASE="${MYSQL_DATABASE}"
+
+mysql -u root -p"${ROOT_PASS}" "${DATABASE}" <<EOF
+
+CREATE DATABASE IF NOT EXISTS example;
+
+USE example;
+
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) NOT NULL UNIQUE,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS public_posts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_passwords (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    temp_password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL 24 HOUR),
+    used BOOLEAN DEFAULT FALSE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+INSERT INTO users (username, email) VALUES
+    ('JohnDoe', 'JohnDoe@gmail.com'),
+    ('JaneDoe', 'JaneDoe@gmail.com');
+EOF

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample HTML Page</title>
+    <link rel="stylesheet" href="/static/CSS/styles.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map { height: 500px; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Welcome to the Sample HTML Page</h1>
+    </header>
+    <main>
+        <p>This is a simple HTML page structure with linked CSS and JavaScript files.</p>
+        <div class="Pos-section">
+            <input type="text" id="city-input" placeholder="Enter city name">
+            <div id="Pos-card"></div>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2024 Sample Company</p>
+    </footer>
+
+    <div id="data-loader" 
+         hx-get="/api/v1/users" 
+         hx-trigger="load" 
+         hx-swap="none"
+         style="display: none;">
+    </div>
+
+    <div id="user-list"></div>
+
+    <script>
+        document.body.addEventListener('htmx:afterRequest', function(event) {
+            if (event.detail.pathInfo.requestPath.includes('/api/v1/users')) {
+                const xhr = event.detail.xhr;
+
+                if (xhr.status === 200) {
+                    try {
+                        const users = JSON.parse(xhr.responseText);
+                        console.log('Users: ', users);
+                        renderUsers(users.users);
+                    } catch (e) {
+                        console.error('Error parsing users JSON:', e);
+                    }
+                } else {
+                    console.error('Failed to load users:', xhr.statusText);
+                }
+            }
+        });
+
+        function renderUsers(users) {
+            const container = document.getElementById('user-list');
+
+            users.forEach(user => {
+                const userCard = document.createElement('div');
+                userCard.className = 'user-card';
+                userCard.innerHTML = `
+                    <h3>${user.username}</h3>
+                    <p>Email: ${user.email}</p>
+                    <button onclick="editUser(${user.id})">Edit</button>
+                    <button onclick="deleteUser(${user.id})">Delete</button>
+                `;
+                container.appendChild(userCard);
+            });
+        }
+
+        function editUser(userId) {
+            alert('Edit user with ID: ' + userId);
+        }
+
+        function deleteUser(userId) {
+            alert('Delete user with ID: ' + userId);
+        }
+    </script>
+    <script type="module">
+        import { setCurrentPos } from "/static/JS/globals.js";
+        import { 
+            updatePos, 
+            debouncedUpdatePos,
+            startPosUpdates,
+            healthCheck 
+        } from "/static/JS/autoUpdater.js";
+
+        // Start automatic updates (every 60 seconds)
+        startPosUpdates(60000);
+        
+        // Health check every 30 seconds
+        setInterval(healthCheck, 30000);
+
+        // City input with debouncing
+        const cityInput = document.getElementById('city-input');
+        cityInput.addEventListener('input', (event) => {
+            setCurrentPos(Number(event.target.value));
+            debouncedUpdatePos();
+        });
+
+        // Initial load
+        document.addEventListener('DOMContentLoaded', () => {
+            updatePos();
+            healthCheck();
+        });
+    </script>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([0, 0], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19
+        }).addTo(map);
+
+        async function drawTours() {
+            const res = await fetch('/api/v1/gps');
+            const data = await res.json();
+
+            const grouped = data.reduce((acc, p) => {
+                acc[p.tourID] ??= [];
+                acc[p.tourID].push([p.latitude, p.longitude]);
+                return acc;
+            }, {});
+
+            const colors = ['red', 'blue', 'green', 'purple', 'orange'];
+
+            Object.entries(grouped).forEach(([tourID, coords], index) => {
+                L.polyline(coords, {
+                    color: colors[index % colors.length],
+                    weight: 4
+                }).addTo(map);
+            });
+
+            const allCoords = Object.values(grouped).flat();
+            if (allCoords.length) {
+                map.fitBounds(allCoords);
+            }
+        }
+
+        drawTours();
+    </script>
+</body>
+</html>

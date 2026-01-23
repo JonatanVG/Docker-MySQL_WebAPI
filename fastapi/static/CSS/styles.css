@@ -1,0 +1,25 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    align-self: center;
+}
+
+.user-card {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin: 10px;
+    border-radius: 5px;
+}
+
+.active {
+    background-color: #e8f5e9;
+}
+
+#Pos-card {
+    border: 1px solid #2196F3;
+    padding: 15px;
+    margin: 10px;
+    border-radius: 5px;
+    background-color: #e3f2fd;
+}

@@ -1,0 +1,109 @@
+services:
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "0.0.0.0:3015:80"    # HTTP
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # For SSL (optional):
+      # - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - server
+      - fastapi
+    networks:
+      - backend
+  
+  # MySQL Database
+  jvgdb:
+    image: mysql:8.0
+    restart: always
+    command: --default-authentication-plugin=caching_sha2_password
+    volumes:
+      - jvgdb-data:/var/lib/mysql
+      - ./init:/docker-entrypoint-initdb.d/
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-example}
+      MYSQL_USER: ${DB_USER:-jvgu}
+      MYSQL_PASSWORD: ${DB_APP_PASSWORD:-apppassword}
+    # Don't expose ports to host (access via nginx or other containers only)
+    # ports:
+    #   - "3307:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - backend
+  
+  # Node.js Server
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: express
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-example}
+      DB_USER: ${DB_USER:-jvgu}
+      DB_PASSWORD: ${DB_APP_PASSWORD:-apppassword}
+      API_KEY: ${API_KEY}
+    # Don't expose to host (nginx will proxy)
+    # ports:
+    #   - "3000:3000"
+    depends_on:
+      jvgdb:
+        condition: service_healthy
+    networks:
+      - backend
+  
+  # Flask API
+  fastapi:
+    build:
+      context: ./fastapi
+      dockerfile: Dockerfile
+    image: fastapi
+    # ports:
+    #  - "5000"
+    environment:
+      FLASK_ENV: ${FLASK_ENV:-production}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-example}
+      DB_USER: ${DB_USER:-jvgu}
+      DB_PASSWORD: ${DB_APP_PASSWORD:-apppassword}
+    # Don't expose to host (nginx will proxy)
+    # ports:
+    #   - "5000:5000"
+    depends_on:
+      - jvgdb
+    networks:
+      - backend
+  
+  # Adminer (optional - only for internal use)
+  adminer:
+    image: adminer
+    restart: always
+    # Don't expose to host, access via nginx at /adminer/
+    # ports: 
+    #   - "8080"
+    depends_on:
+      jvgdb:
+        condition: service_healthy
+    networks:
+      - backend
+
+# Volumes
+volumes:
+  jvgdb-data:
+
+# Networks (optional but recommended)
+networks:
+  backend:
+    driver: bridge
