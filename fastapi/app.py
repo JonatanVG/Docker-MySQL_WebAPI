@@ -8,6 +8,9 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 import mysql.connector
 from cachetools import cached, TTLCache
 from contextlib import contextmanager
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -16,9 +19,9 @@ CACHE = TTLCache(maxsize=1000, ttl=300)
 @contextmanager
 def get_connection():
     conn = mysql.connector.connect(
-        host="jvgdb",
-        user="root",
-        password="Bazinga",
+        host=os.getenv("DB_HOST", "localhost"),
+        user=os.getenv("DB_USER", "gps_user"),
+        password=os.getenv("DB_APP_PASSWORD"),
         database="GPS_Database"
     )
     try:

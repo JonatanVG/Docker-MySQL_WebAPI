@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // Load database password from secrets or env
-export let password = process.env.DB_APP_PASSWORD || 'KokoPeak';
+export let password = process.env.DB_APP_PASSWORD;
 try {
   if (fs.existsSync('/run/secrets/db-password')) {
     password = fs.readFileSync('/run/secrets/db-password', 'utf8');
@@ -21,7 +21,7 @@ try {
   console.warn('Could not read database password from secrets. Using environment variable if available.');
 }
 
-// MySQL connection pool
+// MySQL connection pool. Used to create connections on demand.
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'jvgdb',
   port: process.env.DB_PORT || 3306,
@@ -33,7 +33,7 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
-// Retry function for database connection
+// Retry function for database connection.
 async function connectWithRetry(pool, retries = 10, delay = 2000) {
   for (let i = 0; i < retries; i++) {
     try {
@@ -52,29 +52,33 @@ async function connectWithRetry(pool, retries = 10, delay = 2000) {
 // Attempt to connect at startup
 await connectWithRetry(pool);
 
-// Express configuration
+// Express configuration. Allows trust proxy for deployments behind proxies.
 app.set('trust proxy', 1);
 
 // Middleware
-app.use(express.static(path.join(__dirname, '../public')));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, '../public'))); // Serve static files (inactive as fastapi is used for frontend)
+app.use(express.json()); // Parse JSON request bodies
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded request bodies
 app.use(cors({
   origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.use('/api/v1', PosApi); // Imported router from weatherApi.js
+})); // Enable CORS for all origins
 
-// Routes
+// Use imported router for MySQL /api/v1 routes
+app.use('/api/v1', PosApi);
+
+/// Routes
+
+// Health check endpoint
 app.get('/health', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT 1 as healthy');
     res.json({
       status: 'healthy',
       db: rows[0].healthy === 1 ? 'connected' : 'error'
-    });
+    }); // Simple query to check DB connection
   } catch (error) {
     res.status(500).json({
       status: 'unhealthy',
@@ -84,6 +88,7 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// User management endpoints. Creates a 'users' table if it doesn't exist.
 app.get('/api/v1/users', async (req, res) => {
   try {
     await pool.query(`
@@ -103,6 +108,8 @@ app.get('/api/v1/users', async (req, res) => {
   }
 });
 
+// Create a new user. Expects JSON body with 'name' and 'email'. You can test with:
+// curl -X POST http://10.0.0.124:3015/api/v1/users -H "Content-Type: application/json" -d '{"name":"John Doe","email":"
 app.post('/api/v1/users', async (req, res) => {
   try {
     const { name, email } = req.body;
@@ -145,6 +152,6 @@ app.get('/api/v1/users/:id', async (req, res) => {
 // Start server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log(`Health check at http://localhost:${PORT}/health`);
+  console.log(`Server running on http://10.0.0.124:${PORT}`);
+  console.log(`Health check at http://10.0.0.124:${PORT}/health`);
 });
