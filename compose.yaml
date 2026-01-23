@@ -48,11 +48,12 @@ services:
     image: express
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      DB_HOST: ${DB_HOST:-db}
+      DB_HOST: ${DB_HOST:-jvgdb}
       DB_PORT: ${DB_PORT:-3306}
       DB_NAME: ${DB_NAME:-example}
       DB_USER: ${DB_USER:-jvgu}
       DB_PASSWORD: ${DB_APP_PASSWORD:-apppassword}
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
       API_KEY: ${API_KEY}
     # Don't expose to host (nginx will proxy)
     # ports:

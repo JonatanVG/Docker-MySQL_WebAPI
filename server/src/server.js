@@ -2,7 +2,6 @@ import mysql from 'mysql2/promise';
 import path from 'path';
 import express from 'express';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
 import cors from 'cors';
 import PosApi from '../api/weatherApi.js';
 
@@ -11,23 +10,13 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Load database password from secrets or env
-export let password = process.env.DB_APP_PASSWORD;
-try {
-  if (fs.existsSync('/run/secrets/db-password')) {
-    password = fs.readFileSync('/run/secrets/db-password', 'utf8');
-  }
-} catch (err) {
-  console.warn('Could not read database password from secrets. Using environment variable if available.');
-}
-
 // MySQL connection pool. Used to create connections on demand.
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'jvgdb',
-  port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER || 'root',
-  password: password.trim(),
-  database: process.env.DB_NAME || 'example',
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
@@ -38,15 +27,15 @@ async function connectWithRetry(pool, retries = 10, delay = 2000) {
   for (let i = 0; i < retries; i++) {
     try {
       const connection = await pool.getConnection();
-      console.log('Database connection established successfully.');
+      console.log('server: Database connection established successfully.');
       connection.release();
       return;
     } catch (err) {
-      console.warn(`Database not ready, retrying in ${delay}ms... (${i + 1}/${retries})`);
+      console.warn(`server: Database not ready, retrying in ${delay}ms... (${i + 1}/${retries})`);
       await new Promise(res => setTimeout(res, delay));
     }
   }
-  console.error('Failed to connect to database after retries.');
+  console.error('Server failed to connect to database after retries.');
 }
 
 // Attempt to connect at startup

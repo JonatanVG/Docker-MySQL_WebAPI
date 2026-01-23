@@ -1,19 +1,17 @@
 // weatherApi.js (Express backend)
 import express from 'express';
 import NodeCache from 'node-cache';
-import dotenv from 'dotenv';
 import mysql from 'mysql2/promise';
 
-dotenv.config();
 const router = express.Router();
 const gps_cache = new NodeCache({ stdTTL: 600 }); // 10 minute cache
 
 // MySQL connection pool
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'jvgdb',
-  port: process.env.DB_PORT || 3306,
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
   user: 'root',
-  password: 'Bazinga',
+  password: process.env.DB_ROOT_PASSWORD,
   database: 'GPS_Database',
   waitForConnections: true,
   connectionLimit: 10,
@@ -25,15 +23,15 @@ async function connectWithRetry(pool, retries = 10, delay = 2000) {
   for (let i = 0; i < retries; i++) {
     try {
       const connection = await pool.getConnection();
-      console.log('Database connection established successfully.');
+      console.log('api: Database connection established successfully.');
       connection.release();
       return;
     } catch (err) {
-      console.warn(`Database not ready, retrying in ${delay}ms... (${i + 1}/${retries})`);
+      console.warn(`api: Database not ready, retrying in ${delay}ms... (${i + 1}/${retries})`);
       await new Promise(res => setTimeout(res, delay));
     }
   }
-  console.error('Failed to connect to database after retries.');
+  console.error('Api failed to connect to database after retries.');
 }
 
 // Attempt to connect at startup
