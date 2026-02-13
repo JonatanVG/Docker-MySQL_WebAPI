@@ -21,7 +21,7 @@ def get_connection():
     conn = mysql.connector.connect(
         host=os.getenv("DB_HOST", "localhost"),
         user=os.getenv("DB_USER", "gps_user"),
-        password=os.getenv("DB_APP_PASSWORD"),
+        password=os.getenv("DB_PASSWORD"),
         database="GPS_Database"
     )
     try:

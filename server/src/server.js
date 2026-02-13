@@ -1,55 +1,21 @@
-import mysql from 'mysql2/promise';
-import path from 'path';
 import express from 'express';
-import { fileURLToPath } from 'url';
 import cors from 'cors';
-import PosApi from '../api/weatherApi.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import PosApi from '../api/GPSRouter.js';
+import Tracker from '../api/TrackerPoster.js';
 
 const app = express();
 
 // MySQL connection pool. Used to create connections on demand.
-const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
-
-// Retry function for database connection.
-async function connectWithRetry(pool, retries = 10, delay = 2000) {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const connection = await pool.getConnection();
-      console.log('server: Database connection established successfully.');
-      connection.release();
-      return;
-    } catch (err) {
-      console.warn(`server: Database not ready, retrying in ${delay}ms... (${i + 1}/${retries})`);
-      await new Promise(res => setTimeout(res, delay));
-    }
-  }
-  console.error('Server failed to connect to database after retries.');
-}
-
-// Attempt to connect at startup
-await connectWithRetry(pool);
+import pool from './PoolConfig/poolConfig.js';
 
 // Express configuration. Allows trust proxy for deployments behind proxies.
-app.set('trust proxy', 1);
+app.set('trust proxy', true);
 
 // Middleware
-app.use(express.static(path.join(__dirname, '../public'))); // Serve static files (inactive as fastapi is used for frontend)
 app.use(express.json()); // Parse JSON request bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded request bodies
 app.use(cors({
-  origin: '*',
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -57,7 +23,7 @@ app.use(cors({
 
 // Use imported router for MySQL /api/v1 routes
 app.use('/api/v1', PosApi);
-
+app.use('/api/v1', Tracker);
 /// Routes
 
 // Health check endpoint
@@ -80,15 +46,6 @@ app.get('/health', async (req, res) => {
 // User management endpoints. Creates a 'users' table if it doesn't exist.
 app.get('/api/v1/users', async (req, res) => {
   try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP  
-      )
-    `);
-
     const [users] = await pool.query('SELECT * FROM users;');
     res.json({ users });
   } catch (error) {
@@ -140,7 +97,7 @@ app.get('/api/v1/users/:id', async (req, res) => {
 
 // Start server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on http://10.0.0.124:${PORT}`);
-  console.log(`Health check at http://10.0.0.124:${PORT}/health`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
+  console.log(`Health check at http://0.0.0.0:${PORT}/health`);
 });
