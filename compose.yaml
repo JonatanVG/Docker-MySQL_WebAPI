@@ -1,6 +1,13 @@
 services:
   # Nginx Reverse Proxy
   nginx:
+    depends_on:
+      server:
+        condition: service_healthy
+      fastapi:
+        condition: service_started
+      jvgdb:
+        condition: service_healthy
     image: nginx:alpine
     restart: always
     ports:
@@ -9,9 +16,6 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       # For SSL (optional):
       # - ./nginx/ssl:/etc/nginx/ssl:ro
-    depends_on:
-      - server
-      - fastapi
     networks:
       - backend
   
@@ -45,6 +49,9 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
+    depends_on:
+      jvgdb:
+        condition: service_healthy
     image: express
     environment:
       NODE_ENV: ${NODE_ENV:-production}
@@ -58,11 +65,13 @@ services:
     # Don't expose to host (nginx will proxy)
     # ports:
     #   - "3000:3000"
-    depends_on:
-      jvgdb:
-        condition: service_healthy
     networks:
       - backend
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r=>{if(r.ok)process.exit(0);process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
   
   # Flask API
   fastapi:
@@ -70,8 +79,6 @@ services:
       context: ./fastapi
       dockerfile: Dockerfile
     image: fastapi
-    # ports:
-    #  - "5000"
     environment:
       DB_HOST: ${DB_HOST:-db}
       DB_USER: ${DB_USER:-jvgu}

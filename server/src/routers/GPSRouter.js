@@ -1,7 +1,7 @@
 // weatherApi.js (Express backend)
 import { Router } from 'express';
 const router = Router();
-import controller from './GPSControllers/gpsPos.js';
+import controller from '../controllers/con-pos.js';
 
 router.get('/gps/pos/:posID', controller.pos_get);
 router.get('/gps/pos', controller.all_get);

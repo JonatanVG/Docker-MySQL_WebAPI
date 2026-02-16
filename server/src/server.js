@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
-import PosApi from '../api/GPSRouter.js';
-import Tracker from '../api/TrackerPoster.js';
+import PosApi from './routers/GPSRouter.js';
+import Tracker from './routers/TrackerPoster.js';
 
 const app = express();
 
@@ -26,8 +26,8 @@ app.use('/api/v1', PosApi);
 app.use('/api/v1', Tracker);
 /// Routes
 
-// Health check endpoint
-app.get('/health', async (req, res) => {
+// Health check endpoints
+app.get('/api/v1/health', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT 1 as healthy');
     res.json({
@@ -41,6 +41,13 @@ app.get('/health', async (req, res) => {
       error: error.message
     });
   }
+});
+
+app.get('/health', async (req, res) => {
+  res.json({
+    status: 'healthy',
+    db: 'connected'
+  }); // Simple query to check DB connection
 });
 
 // User management endpoints. Creates a 'users' table if it doesn't exist.

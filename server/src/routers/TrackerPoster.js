@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import controller from './GPSControllers/gpsPpos.js';
+import controller from '../controllers/con-Ppos.js';
 
 const router = Router();
 

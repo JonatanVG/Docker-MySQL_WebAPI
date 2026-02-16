@@ -12,7 +12,7 @@ const pool = mysql.createPool({
 });
 
 // Retry function for database connection
-async function connectWithRetry(pool, retries = 10, delay = 2000) {
+async function connectWithRetry(retries = 60, delay = 2000) {
   for (let i = 0; i < retries; i++) {
     try {
       const connection = await pool.getConnection();
@@ -28,6 +28,6 @@ async function connectWithRetry(pool, retries = 10, delay = 2000) {
 }
 
 // Attempt to connect at startup
-await connectWithRetry(pool);
+await connectWithRetry();
 
 export default pool;
